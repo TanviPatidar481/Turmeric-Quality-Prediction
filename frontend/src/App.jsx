@@ -1,205 +1,482 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getModelCard, getSampleBlob, predictImage } from "./services/api";
 import "./App.css";
-import { PRETTY_LABELS, RETAKE_TIPS, predictImage } from "./services/api";
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/jpg"];
-const INVALID_MSG = "Upload a clear JPG/PNG turmeric powder photo.";
+const pct = (label) => (label ? label.split("_")[0] : "");
 
-function fileError(file) {
-  if (!file) return INVALID_MSG;
-  if (!ACCEPTED_TYPES.includes(file.type) && !/\.(jpe?g|png)$/i.test(file.name))
-    return INVALID_MSG;
-  return null;
+function Stat({ value, label, sub }) {
+    return (
+        <div className="stat">
+            <div className="stat-value">{value}</div>
+            <div className="stat-label">{label}</div>
+            <div className="stat-sub">{sub}</div>
+        </div>
+    );
 }
 
 export default function App() {
-  const [preview, setPreview] = useState(null); // object URL
-  const [blob, setBlob] = useState(null);
-  const [result, setResult] = useState(null);
-  const [warnings, setWarnings] = useState([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [cameraOn, setCameraOn] = useState(false);
-  const [cameraFailed, setCameraFailed] = useState(false);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const fileRef = useRef(null);
+    const [model, setModel] = useState(null);
+    const [modelError, setModelError] = useState(null);
+    const [samples, setSamples] = useState([]);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [fileName, setFileName] = useState(null);
+    const [result, setResult] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+    const [dragging, setDragging] = useState(false);
+    const [activeSample, setActiveSample] = useState(null);
+    const inputRef = useRef(null);
+    const urlRef = useRef(null);
 
-  // Start/stop webcam when toggled
-  useEffect(() => {
-    if (!cameraOn) return;
-    let alive = true;
-    navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: "environment" } })
-      .then((stream) => {
-        if (!alive) return stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch(() => alive && (setCameraFailed(true), setCameraOn(false)));
-    return () => {
-      alive = false;
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    };
-  }, [cameraOn]);
+    useEffect(() => {
+        let alive = true;
+        getModelCard()
+            .then((m) => {
+                if (!alive) return;
+                setModel(m);
+                setSamples(m.samples ?? []);
+            })
+            .catch((e) => alive && setModelError(e.message));
+        return () => {
+            alive = false;
+        };
+    }, []);
 
-  function reset() {
-    setResult(null);
-    setWarnings([]);
-    setError("");
-  }
+    useEffect(() => () => {
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    }, []);
 
-  function onFileChosen(e) {
-    const file = e.target.files?.[0];
-    const msg = fileError(file);
-    if (msg) {
-      setError(msg);
-      return;
-    }
-    reset();
-    setPreview((old) => (old?.startsWith("blob:") && URL.revokeObjectURL(old), URL.createObjectURL(file)));
-    setBlob(file);
-  }
+    const showPreview = useCallback((blob) => {
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+        urlRef.current = URL.createObjectURL(blob);
+        setPreviewUrl(urlRef.current);
+    }, []);
 
-  function capturePhoto() {
-    const video = videoRef.current;
-    if (!video?.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    canvas.toBlob(
-      (b) => {
-        if (!b) return setError(INVALID_MSG);
-        reset();
-        setPreview((old) => (old?.startsWith("blob:") && URL.revokeObjectURL(old), URL.createObjectURL(b)));
-        setBlob(b);
-        setCameraOn(false);
-      },
-      "image/jpeg",
-      0.92,
+    const run = useCallback(
+        async (blob, name, sampleId = null) => {
+            setBusy(true);
+            setError(null);
+            setResult(null);
+            setActiveSample(sampleId);
+            showPreview(blob);
+            setFileName(name);
+            try {
+                setResult(await predictImage(blob));
+            } catch (e) {
+                setError(e.message);
+            } finally {
+                setBusy(false);
+            }
+        },
+        [showPreview],
     );
-  }
 
-  async function onPredict() {
-    if (!blob) return setError(INVALID_MSG);
-    setLoading(true);
-    reset();
-    try {
-      const data = await predictImage(blob);
-      setResult(data);
-      setWarnings(data.warnings ?? (data.confidence < 60 ? ["Low confidence."] : []));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+    const onFiles = useCallback(
+        (files) => {
+            const file = files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith("image/")) {
+                setError("That file is not an image. Use a JPG or PNG.");
+                return;
+            }
+            run(file, file.name);
+        },
+        [run],
+    );
 
-  const uncertain = result && result.confidence < 60;
+    const onSample = useCallback(
+        async (sample) => {
+            setBusy(true);
+            setError(null);
+            setResult(null);
+            setActiveSample(sample.id);
+            setFileName(`${sample.pretty} · sample`);
+            try {
+                const blob = await getSampleBlob(sample.id);
+                showPreview(blob);
+                setResult(await predictImage(blob));
+            } catch (e) {
+                setError(e.message);
+            } finally {
+                setBusy(false);
+            }
+        },
+        [showPreview],
+    );
 
-  return (
-    <main className="demo">
-      <header>
-        <h1>Turmeric Powder Classifier</h1>
-        <p className="sub">
-          Lab prototype: <code>market_bought</code> vs <code>home_ground</code> · MobileNetV2 · 95% test
-          accuracy
-        </p>
-      </header>
+    const sample = activeSample ? samples.find((s) => s.id === activeSample) : null;
+    const agrees = sample && result ? sample.label === result.label : null;
+    const ranked = result?.distances
+        ? Object.entries(result.distances).sort((a, b) => a[1] - b[1])
+        : [];
+    const runnerUp = ranked[1];
 
-      <section className="card">
-        <div className="actions">
-          <button type="button" onClick={() => fileRef.current?.click()}>
-            Upload photo
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => (setCameraFailed(false), setCameraOn((v) => !v))}
-          >
-            {cameraOn ? "Close camera" : "Use camera"}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".jpg,.jpeg,.png"
-            onChange={onFileChosen}
-            hidden
-          />
-        </div>
+    return (
+        <div className="page">
+            <header className="topbar">
+                <div className="brand">
+                    <span className="brand-dot" />
+                    Turmeric&nbsp;Impurity
+                </div>
+                <div className="topbar-meta">
+                    {model ? (
+                        <span className="live">
+                            <span className="live-dot" />
+                            {model.classes.length} classes · LOSO validated
+                        </span>
+                    ) : modelError ? (
+                        <span className="offline">backend offline</span>
+                    ) : (
+                        <span className="loading-dot">connecting…</span>
+                    )}
+                </div>
+            </header>
 
-        {cameraFailed && (
-          <p className="error">
-            Camera unavailable in this browser — please upload a photo instead.
-          </p>
-        )}
+            <section className="hero">
+                <h1>
+                    How much corn starch is <em>in this turmeric?</em>
+                </h1>
+                <p>
+                    Drop a photo of the powder. The model white-balances against the paper in
+                    the frame, masks out everything that isn’t powder, and reads the colour that
+                    is left. Pure colour — no texture, no labels, no paper.
+                </p>
+            </section>
 
-        {cameraOn && (
-          <div className="camera">
-            <video ref={videoRef} autoPlay playsInline muted />
-            <button type="button" className="secondary" onClick={capturePhoto}>
-              Capture
-            </button>
-          </div>
-        )}
-
-        {preview && (
-          <figure className="preview">
-            <img src={preview} alt="Turmeric powder input preview" />
-            <figcaption>Input preview</figcaption>
-          </figure>
-        )}
-
-        <button
-          type="button"
-          className="predict"
-          disabled={!blob || loading}
-          onClick={onPredict}
-        >
-          {loading ? "Classifying…" : "Predict"}
-        </button>
-
-        {error && <p className="error">{error}</p>}
-
-        {(warnings.length > 0 || uncertain) && (
-          <p className="warning">
-            {uncertain ? "Uncertain — retake recommended. " : ""}
-            {warnings.join(" ")} {RETAKE_TIPS}
-          </p>
-        )}
-
-        {result && (
-          <div className="result">
-            <h2>{PRETTY_LABELS[result.label] ?? result.label}</h2>
-            <div className="confbar">
-              <div
-                className="fill"
-                style={{ width: `${Math.min(Math.max(result.confidence, 0), 100)}%` }}
-              />
-            </div>
-            <p>Confidence: {Number(result.confidence).toFixed(1)}%</p>
-            {result.probs && (
-              <ul className="probs">
-                {Object.entries(result.probs).map(([k, v]) => (
-                  <li key={k}>
-                    <code>{k}</code>: {Number(v).toFixed(1)}%
-                  </li>
-                ))}
-              </ul>
+            {modelError && (
+                <div className="banner error">
+                    {modelError}
+                    <span className="banner-hint">Start the API with <code>uvicorn app.main:app --port 8001</code>.</span>
+                </div>
             )}
-          </div>
-        )}
-      </section>
 
-      <footer>
-        <p>
-          Backend: <code>POST /predict</code> (multipart image) →{" "}
-          <code>{"{label, confidence}"}</code>. Invalid files are rejected, never
-          classified.
-        </p>
-      </footer>
-    </main>
-  );
+            <main className="grid">
+                <section className="card">
+                    <div className="card-head">
+                        <h2>Photo</h2>
+                        {result && <span className="tag">{fileName}</span>}
+                    </div>
+
+                    <div
+                        className={`drop${dragging ? " dragging" : ""}${previewUrl ? " filled" : ""}`}
+                        onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragging(true);
+                        }}
+                        onDragLeave={() => setDragging(false)}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            setDragging(false);
+                            onFiles(e.dataTransfer.files);
+                        }}
+                        onClick={() => inputRef.current?.click()}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Choose a turmeric photo"
+                    >
+                        {previewUrl ? (
+                            <img src={previewUrl} alt="Selected turmeric spread" />
+                        ) : (
+                            <div className="drop-empty">
+                                <div className="drop-icon">⌁</div>
+                                <strong>Drop a photo, or click to choose</strong>
+                                <span>JPG or PNG · keep the white paper visible</span>
+                            </div>
+                        )}
+                        <input
+                            ref={inputRef}
+                            type="file"
+                            accept="image/jpeg,image/png"
+                            hidden
+                            onChange={(e) => onFiles(e.target.files)}
+                        />
+                    </div>
+
+                    <div className="samples">
+                        <span className="samples-label">or try a real one</span>
+                        <div className="chips">
+                            {samples.map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    className={`chip${activeSample === s.id ? " on" : ""}`}
+                                    onClick={() => onSample(s)}
+                                    disabled={busy}
+                                >
+                                    {pct(s.label)}%
+                                    <em>{s.note}</em>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="card result">
+                    <div className="card-head">
+                        <h2>Verdict</h2>
+                        {busy && <span className="tag">reading colour…</span>}
+                    </div>
+
+                    {error && <div className="banner error">{error}</div>}
+
+                    {!result && !error && (
+                        <div className="placeholder">
+                            <p>
+                                The model returns one of five levels. A photograph is reduced to
+                                two numbers — the red and green share of the powder’s colour —
+                                and matched to the closest class centroid.
+                            </p>
+                            {model && (
+                                <div className="ladder idle">
+                                    {model.classes.map((c) => (
+                                        <div key={c} className="step">
+                                            <span className="step-pct">{pct(c)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {result && (
+                        <>
+                            <div className="verdict">
+                                <div className="verdict-num">
+                                    {pct(result.label)}
+                                    <span>%</span>
+                                </div>
+                                <div className="verdict-text">
+                                    <strong>predicted corn-starch impurity</strong>
+                                    <span>
+                                        {runnerUp
+                                            ? `next nearest level: ${pct(runnerUp[0])}%`
+                                            : result.pretty}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="ladder">
+                                {model?.classes.map((c) => (
+                                    <div
+                                        key={c}
+                                        className={`step${c === result.label ? " on" : ""}`}
+                                    >
+                                        <span className="step-bar" />
+                                        <span className="step-pct">{pct(c)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="measured">
+                                <div
+                                    className="swatch"
+                                    style={{ background: result.summary?.swatch ?? "#2b2b2b" }}
+                                    title={`measured powder colour ${result.summary?.swatch ?? ""}`}
+                                />
+                                <dl>
+                                    <div>
+                                        <dt>r / (r+g+b)</dt>
+                                        <dd>{result.features?.r_chroma?.toFixed(4) ?? "—"}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>g / (r+g+b)</dt>
+                                        <dd>{result.features?.g_chroma?.toFixed(4) ?? "—"}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>powder in frame</dt>
+                                        <dd>
+                                            {result.summary
+                                                ? `${Math.round(result.summary.powder_fraction * 100)}%`
+                                                : "—"}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            {result.summary?.preview && (
+                                <figure className="region">
+                                    <img
+                                        src={result.summary.preview}
+                                        alt="The powder region the model measured"
+                                    />
+                                    <figcaption>
+                                        the region measured, after white balance
+                                    </figcaption>
+                                </figure>
+                            )}
+
+                            {sample && (
+                                <p className={`sample-note${agrees ? "" : " miss"}`}>
+                                    This sample is labelled {sample.pretty}.{" "}
+                                    {agrees
+                                        ? "The model agrees."
+                                        : "The model disagrees — shown as-is."}
+                                </p>
+                            )}
+
+                            {result.warnings?.length > 0 && (
+                                <ul className="warnings">
+                                    {result.warnings.map((w) => (
+                                        <li key={w}>{w}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                </section>
+            </main>
+
+            {model && (
+                <section className="card model">
+                    <div className="card-head">
+                        <h2>The model</h2>
+                        <span className="mono">
+                            {model.artifact} · {model.artifact_bytes} bytes ·{" "}
+                            {model.features}
+                        </span>
+                    </div>
+
+                    <div className="stats">
+                        <Stat
+                            value={`${(model.cv.photo_accuracy * 100).toFixed(1)}%`}
+                            label="photos correct"
+                            sub={`${model.n_photos} photos held out`}
+                        />
+                        <Stat
+                            value={`${Math.round(model.cv.spread_accuracy * model.n_spreads)}/${model.n_spreads}`}
+                            label="spreads correct"
+                            sub="whole spreads held out"
+                        />
+                        <Stat
+                            value={model.cv.photo_macro_f1.toFixed(3)}
+                            label="macro F1"
+                            sub="unweighted across classes"
+                        />
+                        <Stat
+                            value={model.classes.length}
+                            label="classes"
+                            sub="30% folded into 40%"
+                        />
+                    </div>
+
+                    <div className="model-cols">
+                        <div>
+                            <h3>Recall by class</h3>
+                            <div className="recall">
+                                {model.classes.map((c) => {
+                                    const p = model.per_class[c];
+                                    return (
+                                        <div className="recall-row" key={c}>
+                                            <span className="recall-name">{pct(c)}%</span>
+                                            <span className="recall-bar">
+                                                <i style={{ width: `${p.recall * 100}%` }} />
+                                            </span>
+                                            <span className="recall-val">
+                                                {(p.recall * 100).toFixed(0)}%
+                                            </span>
+                                            <span className="recall-meta">
+                                                <b>{p.n}</b> photos
+                                                <br />
+                                                {p.spreads} spreads
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3>Confusion matrix</h3>
+                            {model.confusion?.matrix?.length ? (
+                                <>
+                                    <table className="confusion">
+                                        <thead>
+                                            <tr>
+                                                <th className="corner" />
+                                                {model.confusion.labels.map((l) => (
+                                                    <th key={l} scope="col">
+                                                        {pct(l)}%
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {model.confusion.matrix.map((row, i) => {
+                                                const actual = model.confusion.labels[i];
+                                                return (
+                                                    <tr key={actual}>
+                                                        <th scope="row">{pct(actual)}%</th>
+                                                        {row.map((v, j) => (
+                                                            <td
+                                                                key={j}
+                                                                className={
+                                                                    i === j
+                                                                        ? "diag"
+                                                                        : v > 0
+                                                                          ? "off"
+                                                                          : "zero"
+                                                                }
+                                                            >
+                                                                {v}
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    <p className="matrix-note">
+                                        Rows are the true label, columns the prediction.
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="matrix-note">Not stored in this artifact.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="caveats">
+                        <h3>What this can and cannot tell you</h3>
+                        <ul>
+                            <li>
+                                <strong>30% and 40% are one class.</strong> The two batches are
+                                only 0.0024 apart in colour against 0.008–0.013 for every other
+                                pair, so the model reports them together as 40%.
+                            </li>
+                            <li>
+                                <strong>0% vs 10% is the only fuzzy boundary.</strong> Every
+                                error in the matrix sits there; 20%, 40% and 50% were never
+                                confused.
+                            </li>
+                            <li>
+                                <strong>Colour only.</strong> Texture, grind and cracks are
+                                ignored on purpose — they track how the spread was made, not
+                                how much starch is in it.
+                            </li>
+                            <li>
+                                <strong>The paper must stay in the shot.</strong> The white
+                                reference is what makes the colour comparable between photos.
+                                A powder-only crop cannot be classified.
+                            </li>
+                            <li>
+                                <strong>{model.n_spreads} independent spreads.</strong> Not 600:
+                                the photos cluster into bursts of one spread each, and the
+                                split above holds out whole spreads.
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+            )}
+
+            <footer className="foot">
+                <span>
+                    nearest-centroid on paper-white-balanced powder chromaticity · colour only
+                </span>
+                <span className="mono">{model ? model.artifact : ""}</span>
+            </footer>
+        </div>
+    );
 }

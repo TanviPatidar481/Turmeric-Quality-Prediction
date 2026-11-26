@@ -1,4 +1,4 @@
-"""POST /predict — turmeric powder classification."""
+"""POST /predict — 5-class turmeric impurity classification."""
 from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -7,8 +7,7 @@ from app.core.model import (
     INVALID_MSG,
     RETAKE_TIPS,
     decode_image,
-    predict_array,
-    preprocess,
+    predict_image,
     quality_warnings,
 )
 
@@ -32,18 +31,31 @@ async def predict(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(status_code=400, detail=INVALID_MSG)
 
-    warnings = quality_warnings(image)
     try:
-        label, confidence, probs = predict_array(preprocess(image))
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
+        result = predict_image(image)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{exc}. {RETAKE_TIPS}",
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    if confidence < 60:
-        warnings.append(f"Uncertain — retake recommended. {RETAKE_TIPS}")
+    warnings = quality_warnings(image)
+    if result["ood"]:
+        warnings.append(
+            result.get("warning")
+            or "Outside the trained colour range; treat this prediction as unreliable."
+        )
 
     return {
-        "label": label,
-        "confidence": confidence,
-        "probs": probs,
+        "label": result["label"],
+        "pretty": result["pretty"],
+        "distance": result["distance"],
+        "margin": result["margin"],
+        "distances": result["distances"],
+        "ood": result["ood"],
+        "features": result["features"],
+        "summary": result["summary"],
         "warnings": warnings,
     }

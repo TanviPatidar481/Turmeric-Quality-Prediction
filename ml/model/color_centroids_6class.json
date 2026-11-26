@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "created": "2026-11-23T07:20:12.748157+00:00",
+  "task": "6-class turmeric impurity from powder-only crops",
+  "scheme": "6class",
+  "features": "chromaticity_rg",
+  "feature_names": [
+    "r_chroma",
+    "g_chroma"
+  ],
+  "feature_note": "r/(r+g+b) and g/(r+g+b) of the mean RGB of saturated powder pixels in an already white-balanced powder-only crop",
+  "classes": [
+    "0_percent",
+    "10_percent",
+    "20_percent",
+    "30_percent",
+    "40_percent",
+    "50_percent"
+  ],
+  "pretty": {
+    "0_percent": "0% impurity",
+    "10_percent": "10% impurity",
+    "20_percent": "20% impurity",
+    "30_percent": "30% impurity",
+    "40_percent": "40% impurity",
+    "50_percent": "50% impurity"
+  },
+  "mean": [
+    0.5787389874458313,
+    0.4007610082626343
+  ],
+  "std": [
+    0.020214451476931572,
+    0.015389076434075832
+  ],
+  "centroids": [
+    [
+      1.3584390878677368,
+      -1.4939496517181396
+    ],
+    [
+      0.9597777128219604,
+      -0.9630498290061951
+    ],
+    [
+      0.11773451417684555,
+      -0.09733312577009201
+    ],
+    [
+      -0.4732710123062134,
+      0.5335240364074707
+    ],
+    [
+      -0.3343821167945862,
+      0.6870282292366028
+    ],
+    [
+      -1.6282176971435547,
+      1.3337969779968262
+    ]
+  ],
+  "distance_scale": 0.5780569911003113,
+  "ood_threshold": 2.312227964401245,
+  "n_crops": 1800,
+  "n_sources": 600,
+  "n_spreads": 19,
+  "cv": {
+    "protocol": "leave-one-spread-out",
+    "rgb": {
+      "crop_accuracy": 0.5238888888888888,
+      "crop_macro_f1": 0.5099629280061895,
+      "spread_accuracy": 0.7894736842105263
+    },
+    "gb": {
+      "crop_accuracy": 0.5677777777777778,
+      "crop_macro_f1": 0.5572695861259356,
+      "spread_accuracy": 0.7894736842105263
+    },
+    "chromaticity": {
+      "crop_accuracy": 0.8294444444444444,
+      "crop_macro_f1": 0.8239001423048821,
+      "spread_accuracy": 0.9473684210526315
+    },
+    "source_means_chromaticity": {
+      "crop_accuracy": 0.8583333333333333,
+      "crop_macro_f1": 0.8525399274914948,
+      "spread_accuracy": 0.9473684210526315
+    }
+  },
+  "labels": {
+    "folder_impurity": {
+      "0_": "0_percent",
+      "10_": "10_percent",
+      "20_": "20_percent",
+      "30_": "40_percent",
+      "40_": "30_percent",
+      "50_": "50_percent"
+    },
+    "merged": {},
+    "reason": "Folders 30_ and 40_ were photographed the wrong way round; FOLDER_IMPURITY corrects them. In the 5-class scheme 30% is folded into 40% because the two batches are only ~0.0024 apart in g-chromaticity, versus 0.008-0.013 for every other neighbouring pair, so they cannot be separated honestly."
+  },
+  "notes": "Expects a powder-only, white-balanced crop. Chromaticity removes the camera's colour response, which is why raw RGB and G,B score far worse. LOSO groups every crop of a capture burst. Spreads per class: 5,5,3,4,2 for the 5-class scheme."
+}

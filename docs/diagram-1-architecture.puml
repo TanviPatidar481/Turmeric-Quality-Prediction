@@ -1,0 +1,49 @@
+@startuml System_Architecture
+title Turmeric Powder Classifier — System Architecture
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "Researcher" as user
+
+package "ml/  (spec deliverable)" {
+  component "train.py\nMobileNetV2 transfer learning" as train
+  component "turmeric_classifier.ipynb\nEDA + experiments" as nb
+  component "app.py\nStreamlit demo" as streamlit
+  file "turmeric_mobilenet.keras\n~21.9 MB · 95% test acc" as model
+}
+
+package "backend/  (REST extension)" {
+  component "main.py\nFastAPI + CORS" as api
+  component "routes/predict.py\nPOST /predict" as predict
+  component "core/model.py\nsingleton · preprocess · guards" as core
+}
+
+package "frontend/  (UI extension)" {
+  component "App.jsx\nReact + Vite" as ui
+  component "services/api.js\naxios multipart" as client
+}
+
+' --- training path
+nb --> train : reproduces
+train --> model : writes (frozen)
+model ..> streamlit : loaded once
+
+' --- inference paths
+user --> streamlit : local demo :8501
+user --> ui : web demo :5173
+ui --> client
+client --> predict : multipart JPG/PNG
+api --> predict
+predict --> core
+core --> model : tf.keras load_model
+
+note bottom of model
+  Single source of truth for inference.
+  Both Streamlit and FastAPI load the
+  same artifact. No retraining in any UI.
+end note
+
+@enduml
+
+

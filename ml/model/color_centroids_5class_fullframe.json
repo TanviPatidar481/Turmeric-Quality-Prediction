@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "created": "2026-11-25T04:26:57.397341+00:00",
+  "task": "5-class turmeric impurity, trained on the serving feature",
+  "scheme": "5class",
+  "features": "chromaticity_rg",
+  "feature_pipeline": "powder_rgb(img, long_side=640): white-balance against the paper in frame, mask the powder, mean RGB of the mask; then r/(r+g+b), g/(r+g+b). This is byte-for-byte the function the API calls, so there is no train/serve skew.",
+  "feature_names": [
+    "r_chroma",
+    "g_chroma"
+  ],
+  "classes": [
+    "0_percent",
+    "10_percent",
+    "20_percent",
+    "40_percent",
+    "50_percent"
+  ],
+  "pretty": {
+    "0_percent": "0% impurity",
+    "10_percent": "10% impurity",
+    "20_percent": "20% impurity",
+    "40_percent": "40% impurity",
+    "50_percent": "50% impurity"
+  },
+  "mean": [
+    0.581101655960083,
+    0.39916184544563293
+  ],
+  "std": [
+    0.022583993151783943,
+    0.014040288515388966
+  ],
+  "centroids": [
+    [
+      1.3562649488449097,
+      -1.6049902439117432
+    ],
+    [
+      0.9244778156280518,
+      -0.9389306902885437
+    ],
+    [
+      0.17054441571235657,
+      -0.00811183825135231
+    ],
+    [
+      -0.3757033050060272,
+      0.678254246711731
+    ],
+    [
+      -1.6999287605285645,
+      1.1954878568649292
+    ]
+  ],
+  "distance_scale": 0.4301624000072479,
+  "ood_threshold": 1.7206496000289917,
+  "n_photos": 600,
+  "n_spreads": 19,
+  "per_class": {
+    "0_percent": {
+      "n": 100,
+      "recall": 0.96,
+      "spreads": 5
+    },
+    "10_percent": {
+      "n": 100,
+      "recall": 0.94,
+      "spreads": 5
+    },
+    "20_percent": {
+      "n": 100,
+      "recall": 0.99,
+      "spreads": 3
+    },
+    "40_percent": {
+      "n": 200,
+      "recall": 1.0,
+      "spreads": 4
+    },
+    "50_percent": {
+      "n": 100,
+      "recall": 1.0,
+      "spreads": 2
+    }
+  },
+  "confusion": {
+    "labels": [
+      "0_percent",
+      "10_percent",
+      "20_percent",
+      "40_percent",
+      "50_percent"
+    ],
+    "matrix": [
+      [
+        96,
+        4,
+        0,
+        0,
+        0
+      ],
+      [
+        6,
+        94,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        99,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        200,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        100
+      ]
+    ]
+  },
+  "cv": {
+    "protocol": "leave-one-spread-out",
+    "photo_accuracy": 0.9816666666666667,
+    "photo_macro_f1": 0.9780387083934524,
+    "spread_accuracy": 1.0
+  },
+  "labels": {
+    "folder_impurity": {
+      "0_": "0_percent",
+      "10_": "10_percent",
+      "20_": "20_percent",
+      "30_": "40_percent",
+      "40_": "30_percent",
+      "50_": "50_percent"
+    },
+    "merged": {
+      "30_percent": "40_percent"
+    },
+    "note": "Folders 30_ and 40_ were photographed the wrong way round; FOLDER_IMPURITY corrects them. 30% is folded into 40% because the two batches are only ~0.0024 apart in g-chromaticity against 0.008-0.013 for every other neighbouring pair."
+  },
+  "notes": "Trained on 600 photos, 19 independent spreads. Accuracy is at the photo level, not the crop level: each row is one physical photo."
+}

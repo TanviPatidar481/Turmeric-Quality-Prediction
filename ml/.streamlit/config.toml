@@ -1,0 +1,8 @@
+[server]
+# Local demo only.
+# Streamlit validates file uploads (PUT /_stcore/upload_file/...) against the
+# _streamlit_xsrf cookie. When that cookie is stale or blocked by the browser
+# the upload fails with "AxiosError: Request failed with status code 403".
+# Disabling XSRF removes that failure mode for localhost demos.
+# Set back to true if this app is ever served beyond localhost.
+enableXsrfProtection = false

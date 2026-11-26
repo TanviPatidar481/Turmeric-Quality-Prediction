@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "created": "2026-11-19T18:06:09.829123+00:00",
+  "features": "gb",
+  "feature_names": [
+    "g",
+    "b"
+  ],
+  "channels": [
+    1,
+    2
+  ],
+  "classes": [
+    "0_percent",
+    "10_percent",
+    "20_percent",
+    "40_percent",
+    "50_percent"
+  ],
+  "pretty": {
+    "0_percent": "0% impurity",
+    "10_percent": "10% impurity",
+    "20_percent": "20% impurity",
+    "40_percent": "40% impurity",
+    "50_percent": "50% impurity"
+  },
+  "mean": [
+    122.68916320800781,
+    23.22168731689453
+  ],
+  "std": [
+    10.308977127075195,
+    16.53455924987793
+  ],
+  "centroids": [
+    [
+      -1.4494041204452515,
+      -1.1426910161972046
+    ],
+    [
+      -0.7616638541221619,
+      -0.9258121252059937
+    ],
+    [
+      -0.298615425825119,
+      -0.33855459094047546
+    ],
+    [
+      0.7456350922584534,
+      0.6469284892082214
+    ],
+    [
+      1.4931597709655762,
+      1.5951136350631714
+    ]
+  ],
+  "distance_scale": 0.21581414341926575,
+  "ood_threshold": 0.863256573677063,
+  "n_images": 191,
+  "n_spreads": 18,
+  "cv": {
+    "protocol": "leave-one-spread-out",
+    "rgb": {
+      "image_accuracy": 0.9476439790575916,
+      "image_macro_f1": 0.9388888888888889,
+      "spread_accuracy": 0.9444444444444444
+    },
+    "gb": {
+      "image_accuracy": 1.0,
+      "image_macro_f1": 1.0,
+      "spread_accuracy": 1.0
+    }
+  },
+  "notes": "Nearest centroid on mean white-balanced powder g, b. Confidence is an uncalibrated softmax over distance scaled by the typical within-class distance. 0_percent was captured in a single session; LOSO cannot test cross-session generalisation for that class."
+}

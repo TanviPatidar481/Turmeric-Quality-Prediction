@@ -1,23 +1,40 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
+    baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8001",
     timeout: 30000,
 });
 
-export const PRETTY_LABELS = {
-    home_ground: "Home-ground (dried roots)",
-    market_bought: "Market-bought",
-};
-
-export const RETAKE_TIPS =
-    "Use bright diffuse light, fill frame with powder, no shadows/containers, hold steady.";
+function friendly(err, fallback) {
+    if (err.response?.data?.detail) return new Error(err.response.data.detail, { cause: err });
+    if (err.code === "ECONNABORTED") return new Error("The server took too long to respond. Try again.", { cause: err });
+    return new Error(fallback, { cause: err });
+}
 
 /**
- * POST multipart image to backend /predict.
- * Resolves to { label, confidence, probs?, warnings? }.
- * Throws Error with user-facing message on failure.
+ * Model card: classes, LOSO scores, per-class recall, confusion matrix.
+ * Everything is read from the trained artifact, never hardcoded.
  */
+export async function getModelCard() {
+    try {
+        const { data } = await api.get("/model");
+        return data;
+    } catch (err) {
+        throw friendly(err, "Could not reach the backend. Is it running on port 8001?");
+    }
+}
+
+/** A real dataset photo, so the page can be tried without an upload. */
+export async function getSampleBlob(id) {
+    try {
+        const { data } = await api.get(`/samples/${id}`, { responseType: "blob" });
+        return data;
+    } catch (err) {
+        throw friendly(err, "Could not load that sample photo.");
+    }
+}
+
+/** POST multipart image to /predict. */
 export async function predictImage(blob) {
     const form = new FormData();
     form.append("file", blob, "turmeric.jpg");
@@ -27,13 +44,6 @@ export async function predictImage(blob) {
         });
         return data;
     } catch (err) {
-        if (err.response?.data?.detail) throw new Error(err.response.data.detail, { cause: err });
-        if (err.code === "ECONNABORTED") throw new Error("Request timed out — try again.", { cause: err });
-        throw new Error(
-            "Cannot reach the API. Start the backend (`uvicorn app.main:app --reload` in backend/) and set VITE_API_BASE_URL.",
-            { cause: err },
-        );
+        throw friendly(err, "Could not reach the classifier. Is the backend running?");
     }
 }
-
-export default api;

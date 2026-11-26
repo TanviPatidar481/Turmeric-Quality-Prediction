@@ -1,0 +1,257 @@
+digraph methodology {
+  rankdir=TB;
+  graph [
+    label=<<B>Figure 1. Research methodology for turmeric adulteration screening</B>>;
+    labelloc="t";
+    labeljust="c";
+    fontname="Helvetica",
+    fontsize=14,
+    nodesep=0.30,
+    ranksep=0.45,
+    splines=polyline,
+    compound=true,
+    pad=0.25
+  ];
+  node [
+    shape=box,
+    style="filled",
+    fillcolor="white",
+    color="#333333",
+    penwidth=1.0,
+    fontname="Helvetica",
+    fontsize=10,
+    margin="0.14,0.09"
+  ];
+  edge [color="#333333", arrowsize=0.7, penwidth=1.0];
+
+  /* ---------------------------------------------------------- phase 1 */
+  subgraph cluster_p1 {
+    label=<<B>1st Phase: Dataset Construction</B>>;
+    labelloc="t";
+    style="filled";
+    fillcolor="#DCDCDC";
+    color="#8C8C8C";
+    penwidth=1.0;
+    fontsize=11;
+
+    n1 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Sampling Design</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• 5 levels: 0, 10, 20, 40, 50 % v/v</TD></TR>
+        <TR><TD ALIGN="LEFT">• 75 mL batch per level</TD></TR>
+        <TR><TD ALIGN="LEFT">• 2 independent batches per level</TD></TR>
+      </TABLE>>];
+    n2 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Specimen Preparation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• 4 g portion per spread</TD></TR>
+        <TR><TD ALIGN="LEFT">• 8 cm template, 1.5 mm layer</TD></TR>
+        <TR><TD ALIGN="LEFT">• Single-stroke screed, no pressing</TD></TR>
+      </TABLE>>];
+    n3 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Image Acquisition</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Fixed rig, 1x zoom only</TD></TR>
+        <TR><TD ALIGN="LEFT">• AE/AF and WB locked</TD></TR>
+        <TR><TD ALIGN="LEFT">• Diffused LED, reference card</TD></TR>
+      </TABLE>>];
+    n4 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Dataset Partition</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Group-aware split by spread</TD></TR>
+        <TR><TD ALIGN="LEFT">• 60 / 20 / 20</TD></TR>
+        <TR><TD ALIGN="LEFT">• Day-2 capture held out</TD></TR>
+      </TABLE>>];
+
+    {rank=same; n1; n2; n3; n4;}
+    n1 -> n2 -> n3 -> n4 [style=invis];
+  }
+
+  /* ---------------------------------------------------------- phase 2 */
+  subgraph cluster_p2 {
+    label=<<B>2nd Phase: Preprocessing and Quality Control</B>>;
+    labelloc="t";
+    style="filled";
+    fillcolor="#DCDCDC";
+    color="#8C8C8C";
+    penwidth=1.0;
+    fontsize=11;
+
+    n5 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Segmentation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Saturation-based powder mask</TD></TR>
+        <TR><TD ALIGN="LEFT">• Centred square, 100 % powder</TD></TR>
+        <TR><TD ALIGN="LEFT">• Pale-pixel exclusion</TD></TR>
+      </TABLE>>];
+    n6 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Colour Normalisation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• WB gains from reference</TD></TR>
+        <TR><TD ALIGN="LEFT">• Applied before cropping</TD></TR>
+      </TABLE>>];
+    n7 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Tensor Preparation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Resize 224 x 224</TD></TR>
+        <TR><TD ALIGN="LEFT">• Preprocess to [-1, 1]</TD></TR>
+      </TABLE>>];
+    n8 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Quality Gates</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Blur and exposure limits</TD></TR>
+        <TR><TD ALIGN="LEFT">• Show-through check</TD></TR>
+        <TR><TD ALIGN="LEFT">• Duplicate detection</TD></TR>
+      </TABLE>>];
+    n9 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Augmentation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Flip, rotation +/-20 deg</TD></TR>
+        <TR><TD ALIGN="LEFT">• Zoom +/-0.2</TD></TR>
+        <TR><TD ALIGN="LEFT">• Brightness excluded</TD></TR>
+      </TABLE>>];
+
+    {rank=same; n5; n6; n7; n8; n9;}
+    n5 -> n6 -> n7 -> n8 -> n9 [style=invis];
+  }
+
+  /* ---------------------------------------------------------- phase 3 */
+  subgraph cluster_p3 {
+    label=<<B>3rd Phase: Model Development and Evaluation</B>>;
+    labelloc="t";
+    style="filled";
+    fillcolor="#DCDCDC";
+    color="#8C8C8C";
+    penwidth=1.0;
+    fontsize=11;
+
+    n10 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Transfer Learning</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• MobileNetV2, ImageNet</TD></TR>
+        <TR><TD ALIGN="LEFT">• Frozen base</TD></TR>
+      </TABLE>>];
+    n11 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Stage 1: Head Only</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Adam 1e-3</TD></TR>
+        <TR><TD ALIGN="LEFT">• Up to 15 epochs</TD></TR>
+      </TABLE>>];
+    n12 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Stage 2: Fine-Tuning</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Last 30 layers unfrozen</TD></TR>
+        <TR><TD ALIGN="LEFT">• Adam 1e-5, 15 epochs</TD></TR>
+      </TABLE>>];
+    n13 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Training Control</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• EarlyStopping, patience 5</TD></TR>
+        <TR><TD ALIGN="LEFT">• Checkpoint on val. accuracy</TD></TR>
+      </TABLE>>];
+
+    n14 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Evaluation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Overall accuracy</TD></TR>
+        <TR><TD ALIGN="LEFT">• Per-class recall</TD></TR>
+        <TR><TD ALIGN="LEFT">• Confusion matrix</TD></TR>
+      </TABLE>>];
+    n15 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Baselines</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Mean-RGB + logistic regression</TD></TR>
+        <TR><TD ALIGN="LEFT">• Nearest class centroid</TD></TR>
+      </TABLE>>];
+    n16 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Ablation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• With / without WB correction</TD></TR>
+        <TR><TD ALIGN="LEFT">• Colour-only vs full image</TD></TR>
+      </TABLE>>];
+
+    {rank=same; n10; n11; n12; n13;}
+    n10 -> n11 -> n12 -> n13 [style=invis];
+    {rank=same; n14; n15; n16;}
+    n14 -> n15 -> n16 [style=invis];
+  }
+
+  /* ---------------------------------------------------------- phase 4 */
+  subgraph cluster_p4 {
+    label=<<B>4th Phase: Deployment and Validation</B>>;
+    labelloc="t";
+    style="filled";
+    fillcolor="#DCDCDC";
+    color="#8C8C8C";
+    penwidth=1.0;
+    fontsize=11;
+
+    n17 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Interface</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Streamlit: upload and camera</TD></TR>
+        <TR><TD ALIGN="LEFT">• FastAPI /predict</TD></TR>
+      </TABLE>>];
+    n18 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Input Guards</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Reject non-image or corrupt</TD></TR>
+        <TR><TD ALIGN="LEFT">• Confidence &lt; 60 %: retake</TD></TR>
+      </TABLE>>];
+    n19 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>External Validation</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Second-day capture</TD></TR>
+        <TR><TD ALIGN="LEFT">• Generalisation gap</TD></TR>
+      </TABLE>>];
+
+    {rank=same; n17; n18; n19;}
+    n17 -> n18 -> n19 [style=invis];
+  }
+
+  /* ---------------------------------------------------------- phase 5 */
+  subgraph cluster_p5 {
+    label=<<B>5th Phase: Analysis and Reporting</B>>;
+    labelloc="t";
+    style="filled";
+    fillcolor="#DCDCDC";
+    color="#8C8C8C";
+    penwidth=1.0;
+    fontsize=11;
+
+    n20 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Error Analysis</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• 10 % vs 20 % boundary</TD></TR>
+        <TR><TD ALIGN="LEFT">• Effect of capture variables</TD></TR>
+      </TABLE>>];
+    n21 [label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="1">
+        <TR><TD ALIGN="LEFT"><B>Limitations</B></TD></TR>
+        <TR><TD ALIGN="LEFT">• Screening, not an assay</TD></TR>
+        <TR><TD ALIGN="LEFT">• Volume-percent labels nominal</TD></TR>
+      </TABLE>>];
+
+    {rank=same; n20; n21;}
+    n20 -> n21 [style=invis];
+  }
+
+  n22 [shape=ellipse, style="filled", fillcolor="white", label="Thesis Writing\nPrepare final report"];
+
+  /* ---------------------------------------------------------- flow */
+  /* invisible spine: leftmost box of each row, so every phase aligns left */
+  n1 -> n5 [style=invis];
+  n5 -> n10 [style=invis];
+  n10 -> n14 [style=invis];
+  n14 -> n17 [style=invis];
+  n17 -> n20 [style=invis];
+  n20 -> n22 [style=invis];
+
+  /* visible flow arrows, excluded from ranking */
+  n4 -> n5 [constraint=false];
+  n9 -> n10 [constraint=false];
+  n13 -> n14;
+  n16 -> n17 [constraint=false];
+  n19 -> n20 [constraint=false];
+  n21 -> n22 [constraint=false];
+}
