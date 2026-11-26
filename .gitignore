@@ -33,6 +33,32 @@ ml/crop_dataset/batch_3/
 ml/turmeric_5class/
 pure/
 
+# ---- this repo holds the model + Streamlit demo only ----
+# everything below lives on disk but is not tracked
+backend/
+frontend/
+docs/
+/*.md
+!/README.md
+*.docx
+ml/model/*.csv
+ml/model/*.npy
+ml/model/*.keras
+ml/model/color_centroids.json
+ml/model/color_centroids_gb.json
+ml/train*.py
+ml/make_crops.py
+ml/*.ipynb
+ml/crop_dataset/
+ml/check_final_crops.jpg
+ml/newset_selection.json
+ml/spec.md
+ml/artifacts/
+ml/README.md
+ml/.env.example
+ml/home grinded/
+ml/market bought/
+
 # one-off review artifacts (superseded notes, contact sheets, scans)
 ml/check_*.jpg
 ml/newset_contact_*.jpg

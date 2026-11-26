@@ -1,10 +1,12 @@
-"""5-class turmeric impurity classifier — Streamlit inference demo.
+"""Turmeric impurity classifier — Streamlit inference demo (600-image model).
 
 Run:  streamlit run app.py   (from the ml/ directory)
 
-The model is the colour nearest-centroid classifier from train_color.py.
-The paper around the spread is used as a per-image white reference, then
-the powder region is cropped in code and reduced to mean RGB.
+Serves the shipped 5-class colour nearest-centroid model
+(model/color_centroids_5class_fullframe.json): paper-white-balanced powder
+chromaticity, 98.2% of 600 photos correct with 19/19 spreads correct under
+leave-one-spread-out. No confidence percentage is shown — the distance-based
+score does not track real accuracy — the next-nearest level is shown instead.
 """
 from __future__ import annotations
 
@@ -15,16 +17,16 @@ import streamlit as st
 from PIL import Image
 
 from color_model import (
-    features_from_rgb,
     load_model as read_model,
     predict_features,
     powder_rgb,
+    to_model_features,
 )
 
 HERE = Path(__file__).resolve().parent
 CANDIDATE_MODELS = [
-    HERE / "model" / "color_centroids.json",
-    HERE / "model" / "color_centroids_gb.json",
+    HERE / "model" / "color_centroids_5class_fullframe.json",
+    HERE / "model" / "color_centroids_5class.json",
 ]
 RETAKE_TIPS = (
     "Use bright diffuse light, fill frame with powder and keep some white "
@@ -50,7 +52,7 @@ def load_model():
 
 def classify(image: Image.Image, model: dict) -> dict:
     rgb_mean = powder_rgb(image)
-    feats = features_from_rgb(rgb_mean, model["channels"])
+    feats = to_model_features(rgb_mean, model)
     return predict_features(feats, model)
 
 
@@ -88,21 +90,21 @@ def read_upload(file) -> Image.Image | None:
 st.set_page_config(page_title="Turmeric Impurity Classifier", layout="centered")
 st.title("Turmeric Impurity Classifier")
 st.caption(
-    "5 levels: 0, 10, 20, 40, 50% corn starch · colour model · "
-    "94.8% leave-one-spread-out (RGB)"
+    "5 levels: 0, 10, 20, 40, 50% corn starch · paper-white-balanced "
+    "powder chromaticity · 98.2% of photos, 19/19 spreads (leave-one-spread-out)"
 )
 
 model, model_path = load_model()
 if model is None:
-    st.error("Model artifact not found. Train first: `python train_color.py` "
-             "(expects `model/color_centroids.json`).")
+    st.error("Model artifact not found. Train first: `python train_color_fullframe.py` "
+             "(expects `model/color_centroids_5class_fullframe.json`).")
     st.stop()
 
 classes = model["classes"]
 pretty = model["pretty"]
 with st.expander("Model card", expanded=False):
     st.write(f"**Features:** {', '.join(model['feature_names']).upper()}")
-    st.write(f"**Images:** {model['n_images']} · **spreads:** {model['n_spreads']}")
+    st.write(f"**Images:** {model.get('n_photos', model.get('n_images'))} · **spreads:** {model['n_spreads']}")
     st.json(model["cv"])
 
 uploaded = st.file_uploader("Upload a turmeric powder photo",
@@ -133,15 +135,13 @@ if st.button("Predict", type="primary"):
         st.stop()
 
     st.subheader(result["pretty"])
-    st.progress(
-        min(max(result["confidence"] / 100, 0.0), 1.0),
-        text=f"Confidence: {result['confidence']:.1f}%",
-    )
 
-    st.write("**Class probabilities**")
-    for c in classes:
-        value = float(result["probs"][c])
-        st.progress(min(max(value / 100, 0.0), 1.0), text=f"{pretty[c]}: {value:.1f}%")
+    ranked = sorted(result["distances"].items(), key=lambda kv: kv[1])
+    if len(ranked) > 1:
+        st.caption(
+            f"Next nearest level: {model['pretty'][ranked[1][0]]} "
+            f"(margin {result['margin']:.3f})"
+        )
 
     st.caption(
         f"Nearest-centroid distance: {result['distance']:.2f} "
@@ -154,5 +154,3 @@ if st.button("Predict", type="primary"):
 
     if warnings:
         st.warning("Photo quality is low — " + RETAKE_TIPS)
-    if result["confidence"] < 60:
-        st.warning("Uncertain — retake recommended. " + RETAKE_TIPS)
