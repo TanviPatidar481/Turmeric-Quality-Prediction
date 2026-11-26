@@ -1,6 +1,7 @@
 # Python virtual environments
 .venv/
 venv/
+ml/venv/
 
 # Environment variables and secrets
 .env
@@ -14,6 +15,30 @@ __pycache__/
 # ML artifacts and checkpoints
 ml/artifacts/*
 !ml/artifacts/.gitkeep
+
+# --- datasets & generated intermediates (large / regenerable, kept on disk, not in git) ---
+# raw phone photos (~7.4 GB HEIC)
+/ml/image dataset/
+*.HEIC
+*.heic
+# downscaled conversion caches
+ml/tmp_newset/
+ml/tmp_newset_640/
+ml/tmp_newset_1600/
+# generated analysis crops (rebuild: cd ml && ./venv/bin/python make_crops.py)
+ml/crop_dataset/batch_1/
+ml/crop_dataset/batch_2/
+ml/crop_dataset/batch_3/
+# legacy / superseded datasets
+ml/turmeric_5class/
+pure/
+
+# one-off review artifacts (superseded notes, contact sheets, scans)
+ml/check_*.jpg
+ml/newset_contact_*.jpg
+ml/newset_creation.txt
+ml/newset_features.csv
+ml/newset_powder_picks.json
 
 # Jupyter
 .ipynb_checkpoints/
